@@ -1,5 +1,6 @@
-#+AUTHOR:Ashvin
-#+TITLE: Mandlebrot Set
+
+#+AUTHOR:Ashvin Oli
+#+TITLE: Mandelbrot Set
 #+PROPERTY: header-args:c :cache yes :noweb yes :tangle yes :exports code
 #+STARTUP: latexpreview overview
 #+LATEX_HEADER: \usepackage[margin=1in]{geometry}
@@ -7,12 +8,12 @@
 
 \newpage
 * Introduction
-Mandlebrot set is the set of complex numbers c such that starting from \(z_0 = 0\) and applying:
+Mandelbrot set is the set of complex numbers c such that starting from \(z_0 = 0\) and applying:
 \[z_{k+1} = z_k^2+c\]
 repeateadly,\(\forall k>0\), \(|z_k| \le 2\)  
 
 * Implementation Details
-Drawing mandlebrot set is quite easy. All we need to do is map each pixel with a complex number(c) and 
+Drawing mandelbrot set is quite easy. All we need to do is map each pixel with a complex number(c) and 
 repeat the iteration to a "Max" number. If \(|z_k|\le 2\) upto max iteration then we color the pixel black
 else we color it white, or for more fun we might use the iteration count itself for coloring.
 Real part of complex number corresponds to x-coordinate, and imaginary part corresponds to y-coordinate.
@@ -40,7 +41,7 @@ To setup SDL2 in windows follow [[https://gist.github.com/thales17/fb2e4cff60890
 * Building
 Simply:
 #+BEGIN_SRC sh
-make mandle.exe
+make mandel.exe
 #+END_SRC
 * Code
 

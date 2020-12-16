@@ -1,4 +1,4 @@
-% Created 2020-12-17 Thu 00:48
+% Created 2020-12-17 Thu 01:04
 % Intended LaTeX compiler: pdflatex
 \documentclass[a4paper,11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -16,12 +16,12 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{minted}
 \usepackage[margin=1in]{geometry}
-\author{Ashvin}
+\author{Ashvin Oli}
 \date{\today}
-\title{Mandlebrot Set}
+\title{Mandelbrot Set}
 \hypersetup{
- pdfauthor={Ashvin},
- pdftitle={Mandlebrot Set},
+ pdfauthor={Ashvin Oli},
+ pdftitle={Mandelbrot Set},
  pdfkeywords={},
  pdfsubject={},
  pdfcreator={Emacs 27.1 (Org mode 9.3)}, 
@@ -33,14 +33,14 @@
 
 \newpage
 \section{Introduction}
-\label{sec:org75448f7}
-Mandlebrot set is the set of complex numbers c such that starting from \(z_0 = 0\) and applying:
+\label{sec:org9f92add}
+Mandelbrot set is the set of complex numbers c such that starting from \(z_0 = 0\) and applying:
 \[z_{k+1} = z_k^2+c\]
 repeateadly,\(\forall k>0\), \(|z_k| \le 2\)  
 
 \section{Implementation Details}
-\label{sec:org4c12fd5}
-Drawing mandlebrot set is quite easy. All we need to do is map each pixel with a complex number(c) and 
+\label{sec:orgb409bd2}
+Drawing mandelbrot set is quite easy. All we need to do is map each pixel with a complex number(c) and 
 repeat the iteration to a "Max" number. If \(|z_k|\le 2\) upto max iteration then we color the pixel black
 else we color it white, or for more fun we might use the iteration count itself for coloring.
 Real part of complex number corresponds to x-coordinate, and imaginary part corresponds to y-coordinate.
@@ -54,31 +54,31 @@ So, we have to scale our screen or else only very small portion of the screen wi
 no fun. So apply two transformation to (x,y) of each pixel. We first shift the origin to center, then we scale it
 such that \(\forall c \in \text{transformed set}, |c| \le 2\) i.e the full screen has the width of 4 i.e radius of 2.
 \subsection{Transformation}
-\label{sec:org44fbf9a}
+\label{sec:org7ddc6fb}
 X = \((x-\frac{width}{2})\times \frac{4}{width}\)\\
 Y =  \((y-\frac{height}{2})\times \frac{4}{width}\)\\
 Note: I have scalled equally in both directions to prevent distortion of image, and y axis is inverted, but this 
 doesn't much affect our shape.
 \subsection{A bit of Complex algebra}
-\label{sec:org31da8cd}
+\label{sec:org5388e67}
 Lets say \(z_k = z_{k_r}+z_{k_i}i\) and \(c = c_r+c_ii\) then
 \[z_{k+1} = (z_{k_r}^2-z_{k_i}^2+c_r)+(2z_{k_r}z_{k_i}+c_i)i\]
 where \(c_r = X\) and \(c_i = Y\).
 
 \section{Setting up SDL2}
-\label{sec:org66de831}
+\label{sec:orgdbca115}
 To setup SDL2 in windows follow \href{https://gist.github.com/thales17/fb2e4cff60890a51d9dddd4c6e832ad2}{these instructions.} Setting up SDL2 in linux follow \href{https://gigi.nullneuron.net/gigilabs/how-to-set-up-sdl2-on-linux/}{this site}.
 \section{Building}
-\label{sec:org53b7efb}
+\label{sec:org57c6911}
 Simply:
 \begin{minted}[frame=lines,linenos=true]{sh}
-make mandle.exe
+make mandel.exe
 \end{minted}
 \section{Code}
-\label{sec:org55f2aff}
+\label{sec:org19bf9ee}
 
 \subsection{Headers and function initialization}
-\label{sec:org3a00f30}
+\label{sec:org52324be}
 \begin{minted}[frame=lines,linenos=true]{c}
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
 
 \end{minted}
 \subsection{Main logic}
-\label{sec:org377789a}
+\label{sec:org6e5ecd8}
 \begin{minted}[frame=lines,linenos=true]{c}
 void draw(SDL_Renderer **renderer,int factor){
    for (int x = 0; x < WIDTH; x++) {
