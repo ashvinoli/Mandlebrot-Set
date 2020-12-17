@@ -71,17 +71,17 @@ int main(int argc, char *argv[])
 	  }else if (event.type == SDL_MOUSEWHEEL) {
 	    float offset_x,offset_y;
 	    if(event.wheel.y > 0)
-	      // scroll up
+	      // scroll down
 	      {
-		printf("\r%-40s","Scrolled Up. Wait for image to render!");
+		printf("\r%-40s","Zooming in. Wait for image to render!");
 		fflush(stdout);
 		offset_x = (out_max_x - out_min_x)/4;
 		offset_y = (out_max_y - out_min_y)/4;
 		MAX_ITER += 20;
 	      }else if (event.wheel.y < 0)
-	      // scroll down
+	      // scroll up
 	      {
-		printf("\r%-40s","Scrolled Down. Wait for image to render!");
+		printf("\r%-40s","Zooming out. Wait for image to render!");
 		fflush(stdout);
 		offset_x = (out_max_x - out_min_x)*2;
 		offset_y = (out_max_y - out_min_y)*2;
