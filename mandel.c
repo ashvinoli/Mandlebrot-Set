@@ -5,12 +5,17 @@
 #include <SDL2/SDL.h>
 
 
-#define WIDTH 1200
-#define HEIGHT 650
-#define MAX_ITER 50
+#define WIDTH 1000
+#define HEIGHT 600
+int MAX_ITER= 50;
 
+double out_max_x= 2;
+double out_min_x=-2;
+double out_max_y= 2;
+double out_min_y=-2;
 
-void draw(SDL_Renderer **,int);
+int draw(SDL_Renderer **,int);
+double map(double,double ,double, double, double);
 
 int main(int argc, char *argv[])
 {
@@ -30,7 +35,7 @@ int main(int argc, char *argv[])
 	return 2;
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == NULL)
     {
 	SDL_DestroyWindow(window);
@@ -43,53 +48,92 @@ int main(int argc, char *argv[])
     int quit = 0;
 
     //Factor is a random number that will spice things up for the image.
-    int factor = 1;
+    int factor = 10;
 
+    //Default value of to_render is true and is set true again when the user draws rectangle on the screen
+    int to_draw = 1;
+
+    //Clear using white color before going inside the loop
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(renderer);
+
+    //Relative position of mouse_x and mouse_y
+    int mouse_x, mouse_y;
+
+    //Mapped mouse_x and mouse_y
+    double mouse_x_mapped ,mouse_y_mapped;
     while (!quit){
-	while (SDL_PollEvent(&event))
-	{
-	    if (event.type == SDL_QUIT)
+      while (SDL_PollEvent(&event))
+	  {
+	  if (event.type == SDL_QUIT){
 		quit = 1;
+
+	  }else if (event.type == SDL_MOUSEWHEEL) {
+	    float offset_x,offset_y;
+	    if(event.wheel.y > 0)
+	      // scroll up
+	      {
+		printf("\r%-40s","Scrolled Up. Wait for image to render!");
+		fflush(stdout);
+		offset_x = (out_max_x - out_min_x)/4;
+		offset_y = (out_max_y - out_min_y)/4;
+		MAX_ITER += 20;
+	      }else if (event.wheel.y < 0)
+	      // scroll down
+	      {
+		printf("\r%-40s","Scrolled Down. Wait for image to render!");
+		fflush(stdout);
+		offset_x = (out_max_x - out_min_x)*2;
+		offset_y = (out_max_y - out_min_y)*2;
+		MAX_ITER -= 10;
+	      }
+	    SDL_GetMouseState(&mouse_x,&mouse_y);
+	    double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
+	    double mouse_x_mapped = map(mouse_x,0,smaller, out_min_x,out_max_x); 
+	    double mouse_y_mapped = map(mouse_y,0,smaller, out_min_y,out_max_y);
+	    out_min_x = mouse_x_mapped - offset_x;
+	    out_max_x = mouse_x_mapped + offset_x;
+	    out_min_y = mouse_y_mapped - offset_y;
+	    out_max_y = mouse_y_mapped + offset_y;
+	    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+	    SDL_RenderClear(renderer);
+	    to_draw = 1;
+
+	  }
 	}
 
-	//Clear using white color
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-	SDL_RenderClear(renderer);
-
 	//Draw pixels on the renderer
-	draw(&renderer,factor);
-	SDL_RenderPresent(renderer);
+	if (to_draw) {
+	  to_draw = draw(&renderer,factor);
+	  SDL_RenderPresent(renderer);
+	  printf("\r%-40s","Image Rendered! You may now zoom.");
+	  fflush(stdout);
+	}
 
-	//Increaseing Factor by 10 each time.
-	factor+=1;
 
     }
 
     //free resources
-    if (renderer){
-      SDL_DestroyRenderer(renderer);
-    }
-    if (window) {
-      SDL_DestroyWindow(window);      
-    }
-
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);      
     SDL_Quit();
     return 0;
 }
 
-void draw(SDL_Renderer **renderer,int factor){
+int draw(SDL_Renderer **renderer,int factor){
    for (int x = 0; x < WIDTH; x++) {
       for (int y =0;  y < HEIGHT; y++) {
       //Transforming and scaling such that origin is center and  radius of 2 around it. Scaling uniformly for both. Y is still inverted.
-	float c_real = (x - WIDTH/2.0) * (4.0/WIDTH); 
-	float c_img = (y-HEIGHT/2.0) * (4.0/WIDTH); 
+	double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
+	double c_real = map(x,0,smaller, out_min_x,out_max_x); 
+	double c_img = map(y,0,smaller, out_min_y,out_max_y); 
 
-	float z_real = 0;
-	float z_img = 0;
+	double z_real = 0;
+	double z_img = 0;
 	int iter_count = 0;
 	while (pow(z_real,2)+pow(z_img,2) <= 4 && iter_count < MAX_ITER) {
-	  float temp_real = pow(z_real,2)-pow(z_img,2)+c_real;
-	  float temp_img = 2*z_real*z_img + c_img;
+	  double temp_real = pow(z_real,2)-pow(z_img,2)+c_real;
+	  double temp_img = 2*z_real*z_img + c_img;
 	  z_real = temp_real;
 	  z_img = temp_img;
 	  iter_count++;
@@ -103,9 +147,14 @@ void draw(SDL_Renderer **renderer,int factor){
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}else{
 	   //Draw with custom shade
-	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*3,iter_count*factor, iter_count*factor, SDL_ALPHA_OPAQUE);
+	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*5,iter_count*factor, iter_count*factor, SDL_ALPHA_OPAQUE);
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}
       }
    }
+   return 0;
+}
+
+double map(double input_value, double input_min, double input_max, double output_min, double output_max){
+  return output_min + (output_max-output_min)/(input_max-input_min)*(input_value-input_min);
 }
