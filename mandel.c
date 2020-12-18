@@ -117,10 +117,7 @@ int main(int argc, char *argv[])
 	out_max_y -= offset_y*0.20;
 	out_min_x += offset_x*0.20;
 	out_max_x -= offset_x*0.20;
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-	SDL_RenderClear(renderer);
-	to_draw = 1;
-
+	white_paint_and_draw(&renderer,&to_draw);
       }
 
 
@@ -129,6 +126,9 @@ int main(int argc, char *argv[])
 	  to_draw = draw(&renderer,factor);	    
 	  SDL_RenderPresent(renderer);
 	  printf("\r%-100s","Image Rendered! You may now zoom or pan.");
+	  if (zoom_forever) {
+	    printf("\r%-100s","Zooming in... Press G to stop.");
+	  }
 	  fflush(stdout);
 	}
     }
