@@ -18,7 +18,7 @@ int zoom_forever = 0;
 int draw(SDL_Renderer **,int);
 double map(double,double ,double, double, double);
 void change_viewport_wrt_mouse(int,int,float,float);
-
+int handle_key_presses(int,float,float,int,int);
 int main(int argc, char *argv[])
 {
   if (SDL_Init(SDL_INIT_VIDEO))
@@ -52,6 +52,8 @@ int main(int argc, char *argv[])
     //Factor is a random number that will spice things up for the image.
     int factor = 10;
 
+    //default zoom level
+    float zoom = 1;
     //Default value of to_render is true and is set true again when the user does some action scrolls in or moves the frame
     int to_draw = 1;
     //Clear using white color before going inside the loop
@@ -63,10 +65,10 @@ int main(int argc, char *argv[])
     // offsets to zoom in or out or move image sidewise
     float offset_x,offset_y;
     while (!quit){
+      offset_x = (out_max_x - out_min_x);
+      offset_y = (out_max_y - out_min_y);
       while (SDL_PollEvent(&event))
 	  {
-	  offset_x = (out_max_x - out_min_x);
-	  offset_y = (out_max_y - out_min_y);
 	  SDL_GetMouseState(&mouse_x,&mouse_y);
 	   switch (event.type) {
 	   case SDL_QUIT: 
@@ -76,7 +78,7 @@ int main(int argc, char *argv[])
 	     if(event.wheel.y > 0)
 	       // scroll down
 	       {
-		 printf("\r%-40s","Zooming in on mouse pointer. Wait for image to render!");
+		 printf("\r%-100s","Zooming in on mouse pointer. Wait for image to render!");
 		 fflush(stdout);
 		 offset_x /= 4;
 		 offset_y /= 4;
@@ -84,7 +86,7 @@ int main(int argc, char *argv[])
 	       }else if (event.wheel.y < 0)
 	       // scroll up
 	       {
-		 printf("\r%-40s","Zooming out. Wait for image to render!");
+		 printf("\r%-100s","Zooming out. Wait for image to render!");
 		 fflush(stdout);
 		 offset_x *=2; 
 		 offset_y *=2;
@@ -98,58 +100,40 @@ int main(int argc, char *argv[])
 	       SDL_RenderClear(renderer);
 	       to_draw = 1;
 	       break;
-	     case SDL_KEYDOWN:
-	       switch (event.key.keysym.sym)
-		 {
-		 case SDLK_w:
-		 //Move up
-		 //Since y axis is inverted subtracting will take us to upper part of screen
-		   printf("\r%-40s","Moving up. Wait for image to render!");
-		   out_min_y -= offset_y/4;
-		   out_max_y -= offset_y/4;
-		   break;
-		 case SDLK_s:
-		 //Move down
-		   printf("\r%-40s","Moving down. Wait for image to render!");
-		   out_min_y += offset_y/4;
-		   out_max_y += offset_y/4;
-		   break;
-		 case SDLK_a:
-		 //Move left
-		   printf("\r%-40s","Moving Left. Wait for image to render!");
-		   out_min_x -= offset_x/4;
-		   out_max_x -= offset_x/4;
-		   break;
-		 case SDLK_d:
-		 //Move right
-		   printf("\r%-40s","Moving Right. Wait for image to render!");
-		   out_min_x += offset_x/4;
-		   out_max_x += offset_x/4;
-		   break;
-		 case SDLK_SPACE:
-		 //Zoom in
-		   printf("\r%-40s","Zooming in on mouse pointer. Wait for image to render!");
-		   change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/4,offset_y/4);
-		   break;
-		 }
+	   case SDL_KEYDOWN:
+	     //if only designated keys are pressed than draw
+	       if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
 		 SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
 		 SDL_RenderClear(renderer);
 		 to_draw = 1;
+	       }
 	       break;
 	   }
 
 	  }
 
+      if (zoom_forever) {
+      //Decreasing and increasing values by certain Percenatage of the offsets for unifom scaling
+      //And preveting the values to get reversed in sign.
+	out_min_y += offset_y*zoom*0.20;
+	out_max_y -= offset_y*zoom*0.20;
+	out_min_x += offset_x*zoom*0.20;
+	out_max_x -= offset_x*zoom*0.20;
+	zoom *= 0.95;
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+	SDL_RenderClear(renderer);
+	to_draw = 1;
+
+      }
+
 
 	//Draw pixels on the renderer
 	if (to_draw) {
-	  to_draw = draw(&renderer,factor);
+	  to_draw = draw(&renderer,factor);	    
 	  SDL_RenderPresent(renderer);
-	  printf("\r%-40s","Image Rendered! You may now zoom or pan.");
+	  printf("\r%-100s","Image Rendered! You may now zoom or pan.");
 	  fflush(stdout);
 	}
-
-
     }
 
     //free resources
@@ -163,6 +147,8 @@ int draw(SDL_Renderer **renderer,int factor){
    for (int x = 0; x < WIDTH; x++) {
       for (int y =0;  y < HEIGHT; y++) {
       // Mapping the screen with the limits.
+      // Same scaling has been made. This causes a slight problem. x and y might gain values outside the range. But it 
+      // prevents distortion. And this is also the reason the image is not centered at origin at the beginning.
 	double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
 	double c_real = map(x,0,smaller, out_min_x,out_max_x); 
 	double c_img = map(y,0,smaller, out_min_y,out_max_y); 
@@ -203,6 +189,57 @@ void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float off
   out_min_y = mouse_y_mapped - offset_y;
   out_max_y = mouse_y_mapped + offset_y;
 
+}
+
+int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,int mouse_y){
+   switch (keycode)
+     {
+     case SDLK_w:
+       //Move up
+       //Since y axis is inverted subtracting will take us to upper part of screen
+       printf("\r%-100s","Moving up. Wait for image to render!");
+       out_min_y -= offset_y/4;
+       out_max_y -= offset_y/4;
+       break;
+     case SDLK_s:
+       //Move down
+       printf("\r%-100s","Moving down. Wait for image to render!");
+       out_min_y += offset_y/4;
+       out_max_y += offset_y/4;
+       break;
+     case SDLK_a:
+       //Move left
+       printf("\r%-100s","Moving Left. Wait for image to render!");
+       out_min_x -= offset_x/4;
+       out_max_x -= offset_x/4;
+       break;
+     case SDLK_d:
+       //Move right
+       printf("\r%-100s","Moving Right. Wait for image to render!");
+       out_min_x += offset_x/4;
+       out_max_x += offset_x/4;
+       break;
+     case SDLK_SPACE:
+       //Zoom in
+       printf("\r%-100s","Zooming in on mouse pointer. Wait for image to render!");
+       change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/4,offset_y/4);
+       break;
+     case SDLK_f:
+       //Zoom forever
+       printf("\r%-100s","Zooming forever on first mouse pointer location. Wait for image to render!");
+       zoom_forever = 1;
+       //Center mouse pointer
+       //change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
+       break;
+     case SDLK_g:
+       //Stop Zoom forever
+       printf("\r%-100s","Zooming forever stopped!");
+       zoom_forever = 0;
+       break;
+     default:
+       return 0;
+     }
+   return 1;
 }
 
 double map(double input_value, double input_min, double input_max, double output_min, double output_max){
