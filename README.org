@@ -35,6 +35,18 @@ doesn't much affect our shape.
 To make the function broader and allow zooming easily we may also define:\\
 X = \(output_{xmin}+\frac{output_{xmax}-output_{xmin}}{input_{xmax}-input_{xmin}}\times (x-input_{xmin})\)\\
 Y = \(output_{ymin}+\frac{output_{ymax}-output_{ymin}}{input_{ymax}-input_{ymin}}\times (y-input_{ymin})\)\\
+
+*** Very important note on scaling
+    Applying above formula with different \(output_{xmax}\) and \(output_{ymax}\) distorts the image.
+    So we need to make sure that x axis and y axis are equally scalled while using the linear interpolation. So, the scale factor which is
+    \[\frac{output_{max}-output_{min}}{input_{max}-input_{min}}\]
+    has to be same for both. I have chosen scalling with respect to HEIGHT as height is less in my case, and this exact scaling
+    has been applied to x-axis. The only important thing to notice is minimum value of x, which has been set that the entire
+    width is in same scale to height, and by taking the half of the scaled value and making it negative, minimum x has been set, 
+    and likewise the max value is the positive half. The only time both max and min x will be utilized is when we are zooming.
+    While zooming infinitely to the mouse pointer what I have done is: First center the point under the mouse pointer, and zoom
+    in to the center infinitely.
+
 ** A bit of Complex algebra
 Lets say \(z_k = z_{k_r}+z_{k_i}i\) and \(c = c_r+c_ii\) then
 \[z_{k+1} = (z_{k_r}^2-z_{k_i}^2+c_r)+(2z_{k_r}z_{k_i}+c_i)i\]
@@ -52,7 +64,8 @@ make mandel.exe
 #+END_SRC
 * Key Bindings
 Use W,S,A,D to move. SPACE to zoom in. Srolling down and pressing SPACE do the same thing.
-Press F to zoom in forever in the center of current screen, and G to stop zooming forever.
+Press F to zoom in forever in the point under the current mouse pointer, and G to stop zooming forever.
+To center the point right under the mouse pointer press C.
 * Code
 
 ** Headers and function initialization
@@ -63,12 +76,12 @@ Press F to zoom in forever in the center of current screen, and G to stop zoomin
   #include <SDL2/SDL.h>
 
 
-  #define WIDTH 1000
-  #define HEIGHT 600
+  #define WIDTH 1000.0
+  #define HEIGHT 600.0
   int MAX_ITER= 50;
 
-  double out_max_x= 2;
-  double out_min_x=-2;
+  double out_max_x;
+  double out_min_x;
   double out_max_y= 2;
   double out_min_y=-2;
   int zoom_forever = 0;
@@ -80,6 +93,8 @@ Press F to zoom in forever in the center of current screen, and G to stop zoomin
   int handle_key_presses(int,float,float,int,int);
   int main(int argc, char *argv[])
   {
+    out_min_x = -2 * WIDTH/HEIGHT;
+    out_max_x = 2 * WIDTH/HEIGHT;
     if (SDL_Init(SDL_INIT_VIDEO))
       {
 	  printf ("SDL_Init Error: %s", SDL_GetError());
@@ -209,9 +224,10 @@ Press F to zoom in forever in the center of current screen, and G to stop zoomin
 	 for (int y =0;  y < HEIGHT; y++) {
 	 // Mapping the screen with the limits.
 	 // Same scaling has been made. This causes a slight problem. x and y might gain values outside the range. But it 
-	 // prevents distortion. And this is also the reason the image is not centered at origin at the beginning.
+	 // prevents distortion. And this is also the reason the image is not centered at the beginning. It is at the origin
+	 // But the origin is to the left of screen.
 	   double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
-	   double c_real = map(x,0,smaller, out_min_x,out_max_x); 
+	   double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
 	   double c_img = map(y,0,smaller, out_min_y,out_max_y); 
 
 	   double z_real = 0;
@@ -245,7 +261,7 @@ Press F to zoom in forever in the center of current screen, and G to stop zoomin
 #+BEGIN_SRC c
   void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float offset_y){
     double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
-    double mouse_x_mapped = map(mouse_x,0,smaller, out_min_x,out_max_x); 
+    double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
     double mouse_y_mapped = map(mouse_y,0,smaller, out_min_y,out_max_y);
     out_min_x = mouse_x_mapped - offset_x;
     out_max_x = mouse_x_mapped + offset_x;
@@ -257,56 +273,62 @@ Press F to zoom in forever in the center of current screen, and G to stop zoomin
 
 ** Handle key presses
 #+BEGIN_SRC c
-  int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,int mouse_y){
-     switch (keycode)
-       {
-       case SDLK_w:
-	 //Move up
-	 //Since y axis is inverted subtracting will take us to upper part of screen
-	 printf("\r%-100s","Moving up. Wait for image to render!");
-	 out_min_y -= offset_y/4;
-	 out_max_y -= offset_y/4;
-	 break;
-       case SDLK_s:
-	 //Move down
-	 printf("\r%-100s","Moving down. Wait for image to render!");
-	 out_min_y += offset_y/4;
-	 out_max_y += offset_y/4;
-	 break;
-       case SDLK_a:
-	 //Move left
-	 printf("\r%-100s","Moving Left. Wait for image to render!");
-	 out_min_x -= offset_x/4;
-	 out_max_x -= offset_x/4;
-	 break;
-       case SDLK_d:
-	 //Move right
-	 printf("\r%-100s","Moving Right. Wait for image to render!");
-	 out_min_x += offset_x/4;
-	 out_max_x += offset_x/4;
-	 break;
-       case SDLK_SPACE:
-	 //Zoom in
-	 printf("\r%-100s","Zooming in on mouse pointer. Wait for image to render!");
-	 change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/4,offset_y/4);
-	 break;
-       case SDLK_f:
-	 //Zoom forever
-	 printf("\r%-100s","Zooming forever on first mouse pointer location. Wait for image to render!");
-	 zoom_forever = 1;
-	 //Center mouse pointer
-	 //change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
-	 break;
-       case SDLK_g:
-	 //Stop Zoom forever
-	 printf("\r%-100s","Zooming forever stopped!");
-	 zoom_forever = 0;
-	 break;
-       default:
-	 return 0;
-       }
-     return 1;
-  }
+   int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,int mouse_y){
+      switch (keycode)
+	{
+	case SDLK_w:
+	  //Move up
+	  //Since y axis is inverted subtracting will take us to upper part of screen
+	  printf("\r%-100s","Moving up. Wait for image to render!");
+	  out_min_y -= offset_y/4;
+	  out_max_y -= offset_y/4;
+	  break;
+	case SDLK_s:
+	  //Move down
+	  printf("\r%-100s","Moving down. Wait for image to render!");
+	  out_min_y += offset_y/4;
+	  out_max_y += offset_y/4;
+	  break;
+	case SDLK_a:
+	  //Move left
+	  printf("\r%-100s","Moving Left. Wait for image to render!");
+	  out_min_x -= offset_x/4;
+	  out_max_x -= offset_x/4;
+	  break;
+	case SDLK_d:
+	  //Move right
+	  printf("\r%-100s","Moving Right. Wait for image to render!");
+	  out_min_x += offset_x/4;
+	  out_max_x += offset_x/4;
+	  break;
+	case SDLK_SPACE:
+	  //Zoom in
+	  printf("\r%-100s","Zooming in on mouse pointer. Wait for image to render!");
+	  change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/4,offset_y/4);
+	  break;
+	case SDLK_f:
+	  //Zoom forever
+	  printf("\r%-100s","Zooming forever on first mouse pointer location. Wait for image to render!");
+	  zoom_forever = 1;
+	  //Center the point under mouse pointer.
+	  change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
+	  break;
+	case SDLK_g:
+	  //Stop Zoom forever
+	  printf("\r%-100s","Zooming forever stopped!");
+	  zoom_forever = 0;
+	  break;
+	case SDLK_c:
+	  //Center the point under the mouse pointer.
+	  printf("\r%-100s","Centering the point under mouse pointer. Wait for image to render!");
+	  //Center the point under mouse pointer.
+	  change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
+	  break;
+	default:
+	  return 0;
+	}
+      return 1;
+   }
 #+END_SRC
 
 ** Map Function

@@ -4,12 +4,12 @@
 #include <SDL2/SDL.h>
 
 
-#define WIDTH 1000
-#define HEIGHT 600
+#define WIDTH 1000.0
+#define HEIGHT 600.0
 int MAX_ITER= 50;
 
-double out_max_x= 2;
-double out_min_x=-2;
+double out_max_x;
+double out_min_x;
 double out_max_y= 2;
 double out_min_y=-2;
 int zoom_forever = 0;
@@ -21,6 +21,8 @@ void change_viewport_wrt_mouse(int,int,float,float);
 int handle_key_presses(int,float,float,int,int);
 int main(int argc, char *argv[])
 {
+  out_min_x = -2 * WIDTH/HEIGHT;
+  out_max_x = 2 * WIDTH/HEIGHT;
   if (SDL_Init(SDL_INIT_VIDEO))
     {
 	printf ("SDL_Init Error: %s", SDL_GetError());
@@ -148,9 +150,10 @@ int draw(SDL_Renderer **renderer,int factor){
       for (int y =0;  y < HEIGHT; y++) {
       // Mapping the screen with the limits.
       // Same scaling has been made. This causes a slight problem. x and y might gain values outside the range. But it 
-      // prevents distortion. And this is also the reason the image is not centered at origin at the beginning.
+      // prevents distortion. And this is also the reason the image is not centered at the beginning. It is at the origin
+      // But the origin is to the left of screen.
 	double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
-	double c_real = map(x,0,smaller, out_min_x,out_max_x); 
+	double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
 	double c_img = map(y,0,smaller, out_min_y,out_max_y); 
 
 	double z_real = 0;
@@ -182,7 +185,7 @@ int draw(SDL_Renderer **renderer,int factor){
 
 void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float offset_y){
   double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
-  double mouse_x_mapped = map(mouse_x,0,smaller, out_min_x,out_max_x); 
+  double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
   double mouse_y_mapped = map(mouse_y,0,smaller, out_min_y,out_max_y);
   out_min_x = mouse_x_mapped - offset_x;
   out_max_x = mouse_x_mapped + offset_x;
@@ -228,13 +231,19 @@ int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,in
        //Zoom forever
        printf("\r%-100s","Zooming forever on first mouse pointer location. Wait for image to render!");
        zoom_forever = 1;
-       //Center mouse pointer
-       //change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
+       //Center the point under mouse pointer.
+       change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
        break;
      case SDLK_g:
        //Stop Zoom forever
        printf("\r%-100s","Zooming forever stopped!");
        zoom_forever = 0;
+       break;
+     case SDLK_c:
+       //Center the point under the mouse pointer.
+       printf("\r%-100s","Centering the point under mouse pointer. Wait for image to render!");
+       //Center the point under mouse pointer.
+       change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
        break;
      default:
        return 0;
