@@ -19,6 +19,8 @@ int draw(SDL_Renderer **,int);
 double map(double,double ,double, double, double);
 void change_viewport_wrt_mouse(int,int,float,float);
 int handle_key_presses(int,float,float,int,int);
+void white_paint_and_draw(SDL_Renderer**, int*);
+
 int main(int argc, char *argv[])
 {
   out_min_x = -2 * WIDTH/HEIGHT;
@@ -54,13 +56,11 @@ int main(int argc, char *argv[])
     //Factor is a random number that will spice things up for the image.
     int factor = 10;
 
-    //default zoom level
-    float zoom = 1;
     //Default value of to_render is true and is set true again when the user does some action scrolls in or moves the frame
-    int to_draw = 1;
-    //Clear using white color before going inside the loop
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
+    int to_draw;
+
+    //Clear using white color before going inside the loop and set to_draw to 1
+    white_paint_and_draw(&renderer,&to_draw);
 
     //Relative position of mouse_x and mouse_y
     int mouse_x, mouse_y;
@@ -98,16 +98,12 @@ int main(int argc, char *argv[])
 
 	       }
 	       change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x,offset_y);
-	       SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-	       SDL_RenderClear(renderer);
-	       to_draw = 1;
+	       white_paint_and_draw(&renderer,&to_draw);
 	       break;
 	   case SDL_KEYDOWN:
 	     //if only designated keys are pressed than draw
 	       if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
-		 SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-		 SDL_RenderClear(renderer);
-		 to_draw = 1;
+		 white_paint_and_draw(&renderer,&to_draw);
 	       }
 	       break;
 	   }
@@ -117,11 +113,10 @@ int main(int argc, char *argv[])
       if (zoom_forever) {
       //Decreasing and increasing values by certain Percenatage of the offsets for unifom scaling
       //And preveting the values to get reversed in sign.
-	out_min_y += offset_y*zoom*0.20;
-	out_max_y -= offset_y*zoom*0.20;
-	out_min_x += offset_x*zoom*0.20;
-	out_max_x -= offset_x*zoom*0.20;
-	zoom *= 0.95;
+	out_min_y += offset_y*0.20;
+	out_max_y -= offset_y*0.20;
+	out_min_x += offset_x*0.20;
+	out_max_x -= offset_x*0.20;
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(renderer);
 	to_draw = 1;
@@ -149,12 +144,9 @@ int draw(SDL_Renderer **renderer,int factor){
    for (int x = 0; x < WIDTH; x++) {
       for (int y =0;  y < HEIGHT; y++) {
       // Mapping the screen with the limits.
-      // Same scaling has been made. This causes a slight problem. x and y might gain values outside the range. But it 
-      // prevents distortion. And this is also the reason the image is not centered at the beginning. It is at the origin
-      // But the origin is to the left of screen.
-	double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
+      // Same scaling has been done such that the image is centered on the screen.
 	double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
-	double c_img = map(y,0,smaller, out_min_y,out_max_y); 
+	double c_img = map(y,0,HEIGHT, out_min_y,out_max_y); 
 
 	double z_real = 0;
 	double z_img = 0;
@@ -184,9 +176,8 @@ int draw(SDL_Renderer **renderer,int factor){
 }
 
 void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float offset_y){
-  double smaller = WIDTH > HEIGHT ? HEIGHT:WIDTH;
   double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
-  double mouse_y_mapped = map(mouse_y,0,smaller, out_min_y,out_max_y);
+  double mouse_y_mapped = map(mouse_y,0,HEIGHT, out_min_y,out_max_y);
   out_min_x = mouse_x_mapped - offset_x;
   out_max_x = mouse_x_mapped + offset_x;
   out_min_y = mouse_y_mapped - offset_y;
@@ -242,13 +233,18 @@ int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,in
      case SDLK_c:
        //Center the point under the mouse pointer.
        printf("\r%-100s","Centering the point under mouse pointer. Wait for image to render!");
-       //Center the point under mouse pointer.
        change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
        break;
      default:
        return 0;
      }
    return 1;
+}
+
+void white_paint_and_draw(SDL_Renderer **renderer, int *to_draw){
+   SDL_SetRenderDrawColor(*renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+   SDL_RenderClear(*renderer);
+   *to_draw = 1;
 }
 
 double map(double input_value, double input_min, double input_max, double output_min, double output_max){
