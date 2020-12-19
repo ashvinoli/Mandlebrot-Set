@@ -141,8 +141,8 @@ int main(int argc, char *argv[])
 	  long double time_spent_on_rendering = 0.0;
 	  clock_t begin = clock();
 	  to_draw = draw(&renderer,factor);
-	  SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(Uint32));
 	  clock_t end = clock();
+	  SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(Uint32));	    
 	  time_spent_on_drawing = ((end - begin) /(long double)CLOCKS_PER_SEC);
 	  SDL_RenderClear(renderer);
           SDL_RenderCopy(renderer, texture, NULL, NULL);
