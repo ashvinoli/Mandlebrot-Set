@@ -4,19 +4,19 @@
 #include <SDL2/SDL.h>
 #include <time.h>
 
-#define WIDTH 1000.0
-#define HEIGHT 600.0
+#define WIDTH 640.0
+#define HEIGHT 480.0
 int MAX_ITER= 50;
 
-double out_max_x;
-double out_min_x;
-double out_max_y= 2;
-double out_min_y=-2;
+long double out_max_x;
+long double out_min_x;
+long double out_max_y= 2;
+long double out_min_y=-2;
 int zoom_forever = 0;
 
 
 int draw(SDL_Renderer **,int);
-double map(double,double ,double, double, double);
+long double map(long double,long double ,long double, long double, long double);
 void change_viewport_wrt_mouse(int,int,float,float);
 int handle_key_presses(int,float,float,int,int);
 void white_paint_and_draw(SDL_Renderer**, int*);
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     //Relative position of mouse_x and mouse_y
     int mouse_x, mouse_y;
     // offsets to zoom in or out or move image sidewise
-    float offset_x,offset_y;
+    long double offset_x,offset_y;
     while (!quit){
       offset_x = (out_max_x - out_min_x);
       offset_y = (out_max_y - out_min_y);
@@ -117,23 +117,25 @@ int main(int argc, char *argv[])
 	out_max_y -= offset_y*0.20;
 	out_min_x += offset_x*0.20;
 	out_max_x -= offset_x*0.20;
+	MAX_ITER += 20;	  
 	white_paint_and_draw(&renderer,&to_draw);
       }
 
 
 	//Draw pixels on the renderer
 	if (to_draw) {
-	  double time_spent_on_drawing = 0.0;
-	  double time_spent_on_rendering = 0.0;
+	  long double time_spent_on_drawing = 0.0;
+	  long double time_spent_on_rendering = 0.0;
 	  clock_t begin = clock();
 	  to_draw = draw(&renderer,factor);	    
 	  clock_t end = clock();
-	  time_spent_on_drawing = ((end - begin) /(double)CLOCKS_PER_SEC);
+	  time_spent_on_drawing = ((end - begin) /(long double)CLOCKS_PER_SEC);
 	  SDL_RenderPresent(renderer);//This is taking loads of time
 	  clock_t end_two = clock();
-	  time_spent_on_rendering = ((end_two - end) /(double)CLOCKS_PER_SEC);
+	  time_spent_on_rendering = ((end_two - end) /(long double)CLOCKS_PER_SEC);
 
-	  printf("\r%s. %.4fs to compute pixels and  %.4fs to render. Total = %.4fs ","Image Rendered! You may now zoom or pan.",time_spent_on_drawing,time_spent_on_rendering,time_spent_on_drawing+time_spent_on_rendering);
+	  printf("\r%s. %.4LGs to compute pixels and  %.4LGs to render. Total = %.4LGs ","Image Rendered! You may now zoom or pan.",time_spent_on_drawing,time_spent_on_rendering,time_spent_on_drawing+time_spent_on_rendering);
+	  //printf("%.8LG %.8LG %.8LG %.8LG",out_max_x,out_min_x, out_max_y,out_min_y);
 	  if (zoom_forever) {
 	    printf("\r%-110s","Zooming in... Press G to stop.");
 	  }
@@ -153,13 +155,13 @@ int draw(SDL_Renderer **renderer,int factor){
       for (int y =0;  y < HEIGHT; y++) {
       // Mapping the screen with the limits.
       // Same scaling has been done such that the image is centered on the screen.
-	double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
-	double c_img = map(y,0,HEIGHT, out_min_y,out_max_y); 
+	long double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
+	long double c_img = map(y,0,HEIGHT, out_min_y,out_max_y); 
 
-	double z_real_squared = 0;
-	double z_img_squared = 0;
-	double z_real = 0;
-	double z_img = 0;
+	long double z_real_squared = 0;
+	long double z_img_squared = 0;
+	long double z_real = 0;
+	long double z_img = 0;
 	int iter_count = 0;
 	//Trying to reduce multiplication count to 3 per iteration
 	while (z_real_squared+z_img_squared <= 4 && iter_count < MAX_ITER) {
@@ -178,7 +180,7 @@ int draw(SDL_Renderer **renderer,int factor){
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}else{
 	   //Draw with custom shade	     
-	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*5,iter_count*factor, iter_count*factor, SDL_ALPHA_OPAQUE);
+	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*15,iter_count*factor, iter_count*factor, SDL_ALPHA_OPAQUE);
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}
       }
@@ -187,8 +189,8 @@ int draw(SDL_Renderer **renderer,int factor){
 }
 
 void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float offset_y){
-  double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
-  double mouse_y_mapped = map(mouse_y,0,HEIGHT, out_min_y,out_max_y);
+  long double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
+  long double mouse_y_mapped = map(mouse_y,0,HEIGHT, out_min_y,out_max_y);
   out_min_x = mouse_x_mapped - offset_x;
   out_max_x = mouse_x_mapped + offset_x;
   out_min_y = mouse_y_mapped - offset_y;
@@ -228,6 +230,7 @@ int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,in
        //Zoom in
        printf("\r%-110s","Zooming in on mouse pointer. Wait for image to render!");
        change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/4,offset_y/4);
+       MAX_ITER += 20;
        break;
      case SDLK_f:
        //Zoom forever
@@ -258,6 +261,6 @@ void white_paint_and_draw(SDL_Renderer **renderer, int *to_draw){
    *to_draw = 1;
 }
 
-double map(double input_value, double input_min, double input_max, double output_min, double output_max){
+long double map(long double input_value, long double input_min, long double input_max, long double output_min, long double output_max){
   return output_min + (output_max-output_min)/(input_max-input_min)*(input_value-input_min);
 }
