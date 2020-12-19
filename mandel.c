@@ -17,8 +17,8 @@ int zoom_forever = 0;
 
 int draw(SDL_Renderer **,int);
 long double map(long double,long double ,long double, long double, long double);
-void change_viewport_wrt_mouse(int,int,float,float);
-int handle_key_presses(int,float,float,int,int);
+void change_viewport_wrt_mouse(int,int,long double,long double);
+int handle_key_presses(int,long double,long double,int,int);
 void white_paint_and_draw(SDL_Renderer**, int*);
 
 int main(int argc, char *argv[])
@@ -188,7 +188,7 @@ int draw(SDL_Renderer **renderer,int factor){
    return 0;
 }
 
-void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float offset_y){
+void change_viewport_wrt_mouse(int mouse_x,int mouse_y,long double offset_x, long double offset_y){
   long double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
   long double mouse_y_mapped = map(mouse_y,0,HEIGHT, out_min_y,out_max_y);
   out_min_x = mouse_x_mapped - offset_x;
@@ -198,7 +198,7 @@ void change_viewport_wrt_mouse(int mouse_x,int mouse_y,float offset_x, float off
 
 }
 
-int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,int mouse_y){
+int handle_key_presses(int keycode,long double offset_x, long double offset_y,int mouse_x,int mouse_y){
    switch (keycode)
      {
      case SDLK_w:
