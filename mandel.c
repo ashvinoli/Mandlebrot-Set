@@ -3,9 +3,10 @@
 #include <math.h>
 #include <SDL2/SDL.h>
 #include <time.h>
+#include <stdint.h>
 
-#define WIDTH 640.0
-#define HEIGHT 480.0
+#define WIDTH 1000
+#define HEIGHT 600
 int MAX_ITER= 50;
 
 long double out_max_x;
@@ -13,13 +14,13 @@ long double out_min_x;
 long double out_max_y= 2;
 long double out_min_y=-2;
 int zoom_forever = 0;
-
+uint32_t pixels[WIDTH*HEIGHT];
 
 int draw(SDL_Renderer **,int);
 long double map(long double,long double ,long double, long double, long double);
 void change_viewport_wrt_mouse(int,int,long double,long double);
 int handle_key_presses(int,long double,long double,int,int);
-void white_paint_and_draw(SDL_Renderer**, int*);
+void white_paint_and_draw(SDL_Texture**, int*);
 
 int main(int argc, char *argv[])
 {
@@ -49,6 +50,16 @@ int main(int argc, char *argv[])
 	SDL_Quit();
 	return 3;
     }
+    SDL_Texture * texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, WIDTH, HEIGHT);
+
+    if (renderer == NULL)
+      {
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	printf ("SDL_Create texture Error: %s", SDL_GetError());
+	SDL_Quit();
+	return 4;
+      }
 
     SDL_Event event;
     int quit = 0;
@@ -60,12 +71,14 @@ int main(int argc, char *argv[])
     int to_draw;
 
     //Clear using white color before going inside the loop and set to_draw to 1
-    white_paint_and_draw(&renderer,&to_draw);
+    white_paint_and_draw(&texture,&to_draw);
 
     //Relative position of mouse_x and mouse_y
     int mouse_x, mouse_y;
     // offsets to zoom in or out or move image sidewise
     long double offset_x,offset_y;
+
+
     while (!quit){
       offset_x = (out_max_x - out_min_x);
       offset_y = (out_max_y - out_min_y);
@@ -98,12 +111,12 @@ int main(int argc, char *argv[])
 
 	       }
 	       change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x,offset_y);
-	       white_paint_and_draw(&renderer,&to_draw);
+	       white_paint_and_draw(&texture,&to_draw);
 	       break;
 	   case SDL_KEYDOWN:
 	     //if only designated keys are pressed than draw
 	       if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
-		 white_paint_and_draw(&renderer,&to_draw);
+		 white_paint_and_draw(&texture,&to_draw);
 	       }
 	       break;
 	   }
@@ -118,7 +131,7 @@ int main(int argc, char *argv[])
 	out_min_x += offset_x*0.20;
 	out_max_x -= offset_x*0.20;
 	MAX_ITER += 20;	  
-	white_paint_and_draw(&renderer,&to_draw);
+	white_paint_and_draw(&texture,&to_draw);
       }
 
 
@@ -127,9 +140,12 @@ int main(int argc, char *argv[])
 	  long double time_spent_on_drawing = 0.0;
 	  long double time_spent_on_rendering = 0.0;
 	  clock_t begin = clock();
-	  to_draw = draw(&renderer,factor);	    
+	  to_draw = draw(&renderer,factor);
+	  SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(Uint32));
 	  clock_t end = clock();
 	  time_spent_on_drawing = ((end - begin) /(long double)CLOCKS_PER_SEC);
+	  SDL_RenderClear(renderer);
+          SDL_RenderCopy(renderer, texture, NULL, NULL);
 	  SDL_RenderPresent(renderer);//This is taking loads of time
 	  clock_t end_two = clock();
 	  time_spent_on_rendering = ((end_two - end) /(long double)CLOCKS_PER_SEC);
@@ -176,12 +192,14 @@ int draw(SDL_Renderer **renderer,int factor){
 	if (iter_count == MAX_ITER) {
 	  //printf("SELECT %.2f %.2f %d %d\n",c_real,c_img,x,y);
 	  //Draw with black
-	  SDL_SetRenderDrawColor(*renderer, 0,0, 0, SDL_ALPHA_OPAQUE);
-	  SDL_RenderDrawPoint(*renderer,x,y);
+	  //SDL_SetRenderDrawColor(*renderer, 0,0, 0, SDL_ALPHA_OPAQUE);
+	  //SDL_RenderDrawPoint(*renderer,x,y);
+	  pixels[WIDTH*y+x] = 0;
 	}else{
 	   //Draw with custom shade	     
-	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*3,iter_count*(factor/5), iter_count, SDL_ALPHA_OPAQUE);
-	  SDL_RenderDrawPoint(*renderer,x,y);
+	  //SDL_SetRenderDrawColor(*renderer, iter_count*factor*3,iter_count*(factor/5), iter_count, SDL_ALPHA_OPAQUE);
+	  //SDL_RenderDrawPoint(*renderer,x,y);
+	  pixels[WIDTH*y+x] =  255/MAX_ITER * iter_count;
 	}
       }
    }
@@ -255,10 +273,10 @@ int handle_key_presses(int keycode,long double offset_x, long double offset_y,in
    return 1;
 }
 
-void white_paint_and_draw(SDL_Renderer **renderer, int *to_draw){
-   SDL_SetRenderDrawColor(*renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-   SDL_RenderClear(*renderer);
-   *to_draw = 1;
+void white_paint_and_draw(SDL_Texture **texture, int *to_draw){
+  memset(pixels, 255, WIDTH * HEIGHT * sizeof(Uint32));
+  SDL_UpdateTexture(*texture, NULL, pixels, WIDTH * sizeof(Uint32));
+  *to_draw = 1;
 }
 
 long double map(long double input_value, long double input_min, long double input_max, long double output_min, long double output_max){
