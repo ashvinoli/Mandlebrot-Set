@@ -180,7 +180,7 @@ int draw(SDL_Renderer **renderer,int factor){
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}else{
 	   //Draw with custom shade	     
-	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*15,iter_count*factor, iter_count*factor, SDL_ALPHA_OPAQUE);
+	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*3,iter_count*(factor/5), iter_count, SDL_ALPHA_OPAQUE);
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}
       }
