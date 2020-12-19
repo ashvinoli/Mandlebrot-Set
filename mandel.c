@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <SDL2/SDL.h>
-
+#include <time.h>
 
 #define WIDTH 1000.0
 #define HEIGHT 600.0
@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 {
   out_min_x = -2 * WIDTH/HEIGHT;
   out_max_x = 2 * WIDTH/HEIGHT;
-  if (SDL_Init(SDL_INIT_VIDEO))
+  if (SDL_Init(SDL_INIT_EVERYTHING))
     {
 	printf ("SDL_Init Error: %s", SDL_GetError());
 	return 1;
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 	return 2;
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL)
     {
 	SDL_DestroyWindow(window);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 	     if(event.wheel.y > 0)
 	       // scroll down
 	       {
-		 printf("\r%-100s","Zooming in on mouse pointer. Wait for image to render!");
+		 printf("\r%-110s","Zooming in on mouse pointer. Wait for image to render!");
 		 fflush(stdout);
 		 offset_x /= 4;
 		 offset_y /= 4;
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	       }else if (event.wheel.y < 0)
 	       // scroll up
 	       {
-		 printf("\r%-100s","Zooming out. Wait for image to render!");
+		 printf("\r%-110s","Zooming out. Wait for image to render!");
 		 fflush(stdout);
 		 offset_x *=2; 
 		 offset_y *=2;
@@ -123,11 +123,19 @@ int main(int argc, char *argv[])
 
 	//Draw pixels on the renderer
 	if (to_draw) {
+	  double time_spent_on_drawing = 0.0;
+	  double time_spent_on_rendering = 0.0;
+	  clock_t begin = clock();
 	  to_draw = draw(&renderer,factor);	    
-	  SDL_RenderPresent(renderer);
-	  printf("\r%-100s","Image Rendered! You may now zoom or pan.");
+	  clock_t end = clock();
+	  time_spent_on_drawing = ((end - begin) /(double)CLOCKS_PER_SEC);
+	  SDL_RenderPresent(renderer);//This is taking loads of time
+	  clock_t end_two = clock();
+	  time_spent_on_rendering = ((end_two - end) /(double)CLOCKS_PER_SEC);
+
+	  printf("\r%s. %.4fs to compute pixels and  %.4fs to render. Total = %.4fs ","Image Rendered! You may now zoom or pan.",time_spent_on_drawing,time_spent_on_rendering,time_spent_on_drawing+time_spent_on_rendering);
 	  if (zoom_forever) {
-	    printf("\r%-100s","Zooming in... Press G to stop.");
+	    printf("\r%-110s","Zooming in... Press G to stop.");
 	  }
 	  fflush(stdout);
 	}
@@ -148,14 +156,17 @@ int draw(SDL_Renderer **renderer,int factor){
 	double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
 	double c_img = map(y,0,HEIGHT, out_min_y,out_max_y); 
 
+	double z_real_squared = 0;
+	double z_img_squared = 0;
 	double z_real = 0;
 	double z_img = 0;
 	int iter_count = 0;
-	while (pow(z_real,2)+pow(z_img,2) <= 4 && iter_count < MAX_ITER) {
-	  double temp_real = pow(z_real,2)-pow(z_img,2)+c_real;
-	  double temp_img = 2*z_real*z_img + c_img;
-	  z_real = temp_real;
-	  z_img = temp_img;
+	//Trying to reduce multiplication count to 3 per iteration
+	while (z_real_squared+z_img_squared <= 4 && iter_count < MAX_ITER) {
+	  z_img = 2*z_real*z_img + c_img;
+	  z_real = z_real_squared-z_img_squared+c_real;
+	  z_real_squared=z_real*z_real;
+	  z_img_squared = z_img*z_img;
 	  iter_count++;
 	}
 
@@ -166,7 +177,7 @@ int draw(SDL_Renderer **renderer,int factor){
 	  SDL_SetRenderDrawColor(*renderer, 0,0, 0, SDL_ALPHA_OPAQUE);
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}else{
-	   //Draw with custom shade
+	   //Draw with custom shade	     
 	  SDL_SetRenderDrawColor(*renderer, iter_count*factor*5,iter_count*factor, iter_count*factor, SDL_ALPHA_OPAQUE);
 	  SDL_RenderDrawPoint(*renderer,x,y);
 	}
@@ -191,48 +202,48 @@ int handle_key_presses(int keycode,float offset_x, float offset_y,int mouse_x,in
      case SDLK_w:
        //Move up
        //Since y axis is inverted subtracting will take us to upper part of screen
-       printf("\r%-100s","Moving up. Wait for image to render!");
+       printf("\r%-110s","Moving up. Wait for image to render!");
        out_min_y -= offset_y/4;
        out_max_y -= offset_y/4;
        break;
      case SDLK_s:
        //Move down
-       printf("\r%-100s","Moving down. Wait for image to render!");
+       printf("\r%-110s","Moving down. Wait for image to render!");
        out_min_y += offset_y/4;
        out_max_y += offset_y/4;
        break;
      case SDLK_a:
        //Move left
-       printf("\r%-100s","Moving Left. Wait for image to render!");
+       printf("\r%-110s","Moving Left. Wait for image to render!");
        out_min_x -= offset_x/4;
        out_max_x -= offset_x/4;
        break;
      case SDLK_d:
        //Move right
-       printf("\r%-100s","Moving Right. Wait for image to render!");
+       printf("\r%-110s","Moving Right. Wait for image to render!");
        out_min_x += offset_x/4;
        out_max_x += offset_x/4;
        break;
      case SDLK_SPACE:
        //Zoom in
-       printf("\r%-100s","Zooming in on mouse pointer. Wait for image to render!");
+       printf("\r%-110s","Zooming in on mouse pointer. Wait for image to render!");
        change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/4,offset_y/4);
        break;
      case SDLK_f:
        //Zoom forever
-       printf("\r%-100s","Zooming forever on first mouse pointer location. Wait for image to render!");
+       printf("\r%-110s","Zooming forever on first mouse pointer location. Wait for image to render!");
        zoom_forever = 1;
        //Center the point under mouse pointer.
        change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
        break;
      case SDLK_g:
        //Stop Zoom forever
-       printf("\r%-100s","Zooming forever stopped!");
+       printf("\r%-110s","Zooming forever stopped!");
        zoom_forever = 0;
        break;
      case SDLK_c:
        //Center the point under the mouse pointer.
-       printf("\r%-100s","Centering the point under mouse pointer. Wait for image to render!");
+       printf("\r%-110s","Centering the point under mouse pointer. Wait for image to render!");
        change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x/2,offset_y/2);
        break;
      default:
