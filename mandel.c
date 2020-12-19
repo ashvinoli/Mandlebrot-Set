@@ -194,12 +194,12 @@ int draw(SDL_Renderer **renderer,int factor){
 	  //Draw with black
 	  //SDL_SetRenderDrawColor(*renderer, 0,0, 0, SDL_ALPHA_OPAQUE);
 	  //SDL_RenderDrawPoint(*renderer,x,y);
-	  pixels[WIDTH*y+x] = 0;
+	  pixels[WIDTH*y+x] = 0xFF0000;
 	}else{
 	   //Draw with custom shade	     
 	  //SDL_SetRenderDrawColor(*renderer, iter_count*factor*3,iter_count*(factor/5), iter_count, SDL_ALPHA_OPAQUE);
 	  //SDL_RenderDrawPoint(*renderer,x,y);
-	  pixels[WIDTH*y+x] =  255/MAX_ITER * iter_count;
+	  pixels[WIDTH*y+x] =  0xFFFFFF/MAX_ITER * iter_count;
 	}
       }
    }
@@ -274,7 +274,7 @@ int handle_key_presses(int keycode,long double offset_x, long double offset_y,in
 }
 
 void white_paint_and_draw(SDL_Texture **texture, int *to_draw){
-  memset(pixels, 255, WIDTH * HEIGHT * sizeof(Uint32));
+  memset(pixels, 0xFFFFFF, WIDTH * HEIGHT * sizeof(Uint32));
   SDL_UpdateTexture(*texture, NULL, pixels, WIDTH * sizeof(Uint32));
   *to_draw = 1;
 }
