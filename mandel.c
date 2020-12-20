@@ -16,171 +16,169 @@ long double out_min_y=-2;
 int zoom_forever = 0;
 uint32_t pixels[WIDTH*HEIGHT];
 
-int draw(SDL_Renderer **,int);
-long double map(long double,long double ,long double, long double, long double);
+
+typedef struct app{
+  SDL_Window *window;
+  SDL_Renderer *renderer;
+  SDL_Texture *texture;
+}App;
+
+int draw();
 void change_viewport_wrt_mouse(int,int,long double,long double);
 int handle_key_presses(int,long double,long double,int,int);
 void white_paint_and_draw(SDL_Texture**, int*);
-int initialize_everything(SDL_Window **,SDL_Renderer**,SDL_Texture**);
+int initialize_everything(App*);
+void destroy_app(App*);
+void main_loop(App*);
 
 int main(int argc, char *argv[])
 {
+
+  App my_app = {NULL,NULL,NULL};
+  if(initialize_everything(&my_app)) return 1;
+  main_loop(&my_app);
+  printf("\n");
+  destroy_app(&my_app);
+  return 0;
+}
+
+int initialize_everything(App *my_app){
   out_min_x = -2 * WIDTH/HEIGHT;
   out_max_x = 2 * WIDTH/HEIGHT;
-  SDL_Window* window=NULL;
-  SDL_Renderer* renderer=NULL;
-  SDL_Texture* texture=NULL;
-  if(initialize_everything(&window,&renderer,&texture)) return 1;
+  if (SDL_Init(SDL_INIT_EVERYTHING))
+    {
+      printf ("SDL_Init Error: %s", SDL_GetError());
+      return 1;
+    }
+
+  my_app->window = SDL_CreateWindow("Mandelbrot Set", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
+  if (my_app->window == NULL)
+    {
+      printf ("SDL_CreateWindow Error: %s", SDL_GetError());
+      SDL_Quit();
+      return 2;
+    }
+
+  my_app->renderer = SDL_CreateRenderer(my_app->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (my_app->renderer == NULL)
+    {
+      SDL_DestroyWindow(my_app->window);
+      printf ("SDL_CreateRenderer Error: %s", SDL_GetError());
+      SDL_Quit();
+      return 3;
+    }
+  my_app->texture = SDL_CreateTexture(my_app->renderer,SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, WIDTH, HEIGHT);
+
+  if (my_app->texture == NULL)
+    {
+      SDL_DestroyRenderer(my_app->renderer);
+      SDL_DestroyWindow(my_app->window);
+      printf ("SDL_Create texture Error: %s", SDL_GetError());
+      SDL_Quit();
+      return 4;
+    }
+  return 0;
+}
+
+void main_loop(App *my_app){
     SDL_Event event;
-    int quit = 0;
+      int quit = 0;
+      //Default value of to_render is true and is set true again when the user does some action scrolls in or moves the frame
+      int to_draw;
 
-    //Factor is a random number that will spice things up for the image.
-    int factor = 10;
+      //Clear using white color before going inside the loop and set to_draw to 1
+      white_paint_and_draw(&(my_app->texture),&to_draw);
 
-    //Default value of to_render is true and is set true again when the user does some action scrolls in or moves the frame
-    int to_draw;
+      //Relative position of mouse_x and mouse_y
+      int mouse_x, mouse_y;
+      //Offsets
+      long double offset_x,offset_y;
 
-    //Clear using white color before going inside the loop and set to_draw to 1
-    white_paint_and_draw(&texture,&to_draw);
+      while (!quit){
+	offset_x = (out_max_x - out_min_x);
+	offset_y = (out_max_y - out_min_y);
+	while (SDL_PollEvent(&event))
+	    {
+	    SDL_GetMouseState(&mouse_x,&mouse_y);
+	     switch (event.type) {
+	     case SDL_QUIT: 
+	       quit = 1;
+	       break;
+	     case SDL_MOUSEWHEEL:
+	       if(event.wheel.y > 0)
+		 // scroll down
+		 {
+		   printf("\r%-110s","Zooming in on mouse pointer. Wait for image to render!");
+		   fflush(stdout);
+		   offset_x /= 4;
+		   offset_y /= 4;
+		   MAX_ITER += 20;
+		 }else if (event.wheel.y < 0)
+		 // scroll up
+		 {
+		   printf("\r%-110s","Zooming out. Wait for image to render!");
+		   fflush(stdout);
+		   offset_x *=1.5; 
+		   offset_y *=1.5;
+		   if (MAX_ITER >= 50) {
+		     MAX_ITER -= 20;		   
+		   }
 
-    //Relative position of mouse_x and mouse_y
-    int mouse_x, mouse_y;
-    // offsets to zoom in or out or move image sidewise
-    long double offset_x,offset_y;
-
-
-    while (!quit){
-      offset_x = (out_max_x - out_min_x);
-      offset_y = (out_max_y - out_min_y);
-      while (SDL_PollEvent(&event))
-	  {
-	  SDL_GetMouseState(&mouse_x,&mouse_y);
-	   switch (event.type) {
-	   case SDL_QUIT: 
-	     quit = 1;
-	     break;
-	   case SDL_MOUSEWHEEL:
-	     if(event.wheel.y > 0)
-	       // scroll down
-	       {
-		 printf("\r%-110s","Zooming in on mouse pointer. Wait for image to render!");
-		 fflush(stdout);
-		 offset_x /= 4;
-		 offset_y /= 4;
-		 MAX_ITER += 20;
-	       }else if (event.wheel.y < 0)
-	       // scroll up
-	       {
-		 printf("\r%-110s","Zooming out. Wait for image to render!");
-		 fflush(stdout);
-		 offset_x *=2; 
-		 offset_y *=2;
-		 if (MAX_ITER >= 50) {
-		   MAX_ITER -= 20;		   
 		 }
+		 change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x,offset_y);
+		 white_paint_and_draw(&(my_app->texture),&to_draw);
+		 break;
+	     case SDL_KEYDOWN:
+	       //if only designated keys are pressed than draw
+		 if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
+		   white_paint_and_draw(&(my_app->texture),&to_draw);
+		 }
+		 break;
+	     }
 
-	       }
-	       change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x,offset_y);
-	       white_paint_and_draw(&texture,&to_draw);
-	       break;
-	   case SDL_KEYDOWN:
-	     //if only designated keys are pressed than draw
-	       if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
-		 white_paint_and_draw(&texture,&to_draw);
-	       }
-	       break;
-	   }
+	    }
 
-	  }
-
-      if (zoom_forever) {
-      //Decreasing and increasing values by certain Percenatage of the offsets for unifom scaling
-      //And preveting the values to get reversed in sign.
-	out_min_y += offset_y*0.20;
-	out_max_y -= offset_y*0.20;
-	out_min_x += offset_x*0.20;
-	out_max_x -= offset_x*0.20;
-	MAX_ITER += 20;	  
-	white_paint_and_draw(&texture,&to_draw);
-      }
-
-
+	if (zoom_forever) {
+	//Decreasing and increasing values by certain Percenatage of the offsets for unifom scaling
+	//And preveting the values to get reversed in sign.
+	  out_min_y += offset_y*0.20;
+	  out_max_y -= offset_y*0.20;
+	  out_min_x += offset_x*0.20;
+	  out_max_x -= offset_x*0.20;
+	  MAX_ITER += 20;	  
+	  white_paint_and_draw(&(my_app->texture),&to_draw);
+	}
 	//Draw pixels on the renderer
 	if (to_draw) {
 	  long double time_spent_on_drawing = 0.0;
 	  long double time_spent_on_rendering = 0.0;
 	  clock_t begin = clock();
-	  to_draw = draw(&renderer,factor);
+	  to_draw = draw();
 	  clock_t end = clock();
-	  SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(Uint32));	    
+	  SDL_UpdateTexture(my_app->texture, NULL, pixels, WIDTH * sizeof(Uint32));	    
 	  time_spent_on_drawing = ((end - begin) /(long double)CLOCKS_PER_SEC);
-	  SDL_RenderClear(renderer);
-	  SDL_RenderCopy(renderer, texture, NULL, NULL);
-	  SDL_RenderPresent(renderer);
+	  SDL_RenderClear(my_app->renderer);
+	  SDL_RenderCopy(my_app->renderer, my_app->texture, NULL, NULL);
+	  SDL_RenderPresent(my_app->renderer);
 	  clock_t end_two = clock();
 	  time_spent_on_rendering = ((end_two - end) /(long double)CLOCKS_PER_SEC);
 
 	  printf("\r%s. %.6LGs to compute pixels and  %.6LGs to render. Total = %.6LGs ","Image Rendered! You may now zoom or pan.",time_spent_on_drawing,time_spent_on_rendering,time_spent_on_drawing+time_spent_on_rendering);
-	  //printf("%.8LG %.8LG %.8LG %.8LG",out_max_x,out_min_x, out_max_y,out_min_y);
 	  if (zoom_forever) {
 	    printf("\r%-110s","Zooming in... Press G to stop.");
 	  }
 	  fflush(stdout);
 	}
     }
-
-    printf("\n");
-    //free resources
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);      
-    SDL_Quit();
-    return 0;
 }
 
-int initialize_everything(SDL_Window**window,SDL_Renderer** renderer, SDL_Texture** texture){
-if (SDL_Init(SDL_INIT_EVERYTHING))
-      {
-	  printf ("SDL_Init Error: %s", SDL_GetError());
-	  return 1;
-      }
-      *window = SDL_CreateWindow("Mandelbrot Set", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
-      if (*window == NULL)
-      {
-	  printf ("SDL_CreateWindow Error: %s", SDL_GetError());
-	  SDL_Quit();
-	  return 2;
-      }
-
-      *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-      if (*renderer == NULL)
-      {
-	  SDL_DestroyWindow(*window);
-	  printf ("SDL_CreateRenderer Error: %s", SDL_GetError());
-	  SDL_Quit();
-	  return 3;
-      }
-      *texture = SDL_CreateTexture(*renderer,SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, WIDTH, HEIGHT);
-
-      if (*texture == NULL)
-	{
-	  SDL_DestroyRenderer(*renderer);
-	  SDL_DestroyWindow(*window);
-	  printf ("SDL_Create texture Error: %s", SDL_GetError());
-	  SDL_Quit();
-	  return 4;
-	}
-	return 0;
-}
-
-int draw(SDL_Renderer **renderer,int factor){
+int draw(){
    for (int x = 0; x < WIDTH; x++) {
       for (int y =0;  y < HEIGHT; y++) {
-      // Mapping the screen with the limits.
+      // Mmy_apping the screen with the limits.
       // Same scaling has been done such that the image is centered on the screen.
 	long double c_real = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*x; 
-	long double c_img = map(y,0,HEIGHT, out_min_y,out_max_y); 
-
+	long double c_img =  out_min_y + (out_max_y-out_min_y)/(HEIGHT)*y; 
 	long double z_real_squared = 0;
 	long double z_img_squared = 0;
 	long double z_real = 0;
@@ -214,14 +212,14 @@ int draw(SDL_Renderer **renderer,int factor){
 }
 
 void change_viewport_wrt_mouse(int mouse_x,int mouse_y,long double offset_x, long double offset_y){
-  long double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
-  long double mouse_y_mapped = map(mouse_y,0,HEIGHT, out_min_y,out_max_y);
-  out_min_x = mouse_x_mapped - offset_x;
-  out_max_x = mouse_x_mapped + offset_x;
-  out_min_y = mouse_y_mapped - offset_y;
-  out_max_y = mouse_y_mapped + offset_y;
-
-}
+    long double mouse_x_mapped = out_min_x + (out_max_y-out_min_y)/(HEIGHT)*mouse_x;  
+    long double mouse_y_mapped = out_min_y + (out_max_y-out_min_y)/(HEIGHT)*mouse_y;  
+    out_min_x = mouse_x_mapped - offset_x;
+    out_max_x = mouse_x_mapped + offset_x;
+    out_min_y = mouse_y_mapped - offset_y;
+    out_max_y = mouse_y_mapped + offset_y;
+  
+  }
 
 int handle_key_presses(int keycode,long double offset_x, long double offset_y,int mouse_x,int mouse_y){
    switch (keycode)
@@ -286,6 +284,9 @@ void white_paint_and_draw(SDL_Texture **texture, int *to_draw){
   *to_draw = 1;
 }
 
-long double map(long double input_value, long double input_min, long double input_max, long double output_min, long double output_max){
-  return output_min + (output_max-output_min)/(input_max-input_min)*(input_value-input_min);
+void destroy_app(App *my_app){
+  SDL_DestroyTexture(my_app->texture);
+  SDL_DestroyRenderer(my_app->renderer);
+  SDL_DestroyWindow(my_app->window);      
+  SDL_Quit();
 }
