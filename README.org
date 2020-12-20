@@ -76,6 +76,7 @@ To center the point right under the mouse pointer press C.
   #include <SDL2/SDL.h>
   #include <time.h>
   #include <stdint.h>
+  #include <errno.h>
 
   #define WIDTH 1000
   #define HEIGHT 600
@@ -86,19 +87,19 @@ To center the point right under the mouse pointer press C.
   long double out_max_y= 2;
   long double out_min_y=-2;
   int zoom_forever = 0;
-  uint32_t pixels[WIDTH*HEIGHT];
   
 
   typedef struct app{
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
+    uint32_t *pixels;
   }App;
 
-  int draw();
+  int draw(App*);
   void change_viewport_wrt_mouse(int,int,long double,long double);
   int handle_key_presses(int,long double,long double,int,int);
-  void white_paint_and_draw(SDL_Texture**, int*);
+  void white_paint_and_draw(App*, int*);
   int initialize_everything(App*);
   void destroy_app(App*);
   void main_loop(App*);
@@ -106,7 +107,7 @@ To center the point right under the mouse pointer press C.
   int main(int argc, char *argv[])
   {
 
-    App my_app = {NULL,NULL,NULL};
+    App my_app = {NULL,NULL,NULL,NULL};
     if(initialize_everything(&my_app)) return 1;
     main_loop(&my_app);
     printf("\n");
@@ -119,6 +120,14 @@ To center the point right under the mouse pointer press C.
   int initialize_everything(App *my_app){
     out_min_x = -2 * WIDTH/HEIGHT;
     out_max_x = 2 * WIDTH/HEIGHT;
+    my_app->pixels = (uint32_t*)malloc(WIDTH*HEIGHT*sizeof(uint32_t));
+    if (my_app->pixels == NULL){
+    {
+	printf ("Memory Error: Value of error %d", errno);
+	return 1;
+      }
+
+    }
     if (SDL_Init(SDL_INIT_EVERYTHING))
       {
 	printf ("SDL_Init Error: %s", SDL_GetError());
@@ -164,7 +173,7 @@ To center the point right under the mouse pointer press C.
 	int to_draw;
 
 	//Clear using white color before going inside the loop and set to_draw to 1
-	white_paint_and_draw(&(my_app->texture),&to_draw);
+	white_paint_and_draw(my_app,&to_draw);
 
 	//Relative position of mouse_x and mouse_y
 	int mouse_x, mouse_y;
@@ -203,12 +212,12 @@ To center the point right under the mouse pointer press C.
 
 		   }
 		   change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x,offset_y);
-		   white_paint_and_draw(&(my_app->texture),&to_draw);
+		   white_paint_and_draw(my_app,&to_draw);
 		   break;
 	       case SDL_KEYDOWN:
 		 //if only designated keys are pressed than draw
 		   if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
-		     white_paint_and_draw(&(my_app->texture),&to_draw);
+		     white_paint_and_draw(my_app,&to_draw);
 		   }
 		   break;
 	       }
@@ -223,16 +232,16 @@ To center the point right under the mouse pointer press C.
 	    out_min_x += offset_x*0.20;
 	    out_max_x -= offset_x*0.20;
 	    MAX_ITER += 20;	  
-	    white_paint_and_draw(&(my_app->texture),&to_draw);
+	    white_paint_and_draw(my_app,&to_draw);
 	  }
 	  //Draw pixels on the renderer
 	  if (to_draw) {
 	    long double time_spent_on_drawing = 0.0;
 	    long double time_spent_on_rendering = 0.0;
 	    clock_t begin = clock();
-	    to_draw = draw();
+	    to_draw = draw(my_app);
 	    clock_t end = clock();
-	    SDL_UpdateTexture(my_app->texture, NULL, pixels, WIDTH * sizeof(Uint32));	    
+	    SDL_UpdateTexture(my_app->texture, NULL, my_app->pixels, WIDTH * sizeof(Uint32));	    
 	    time_spent_on_drawing = ((end - begin) /(long double)CLOCKS_PER_SEC);
 	    SDL_RenderClear(my_app->renderer);
 	    SDL_RenderCopy(my_app->renderer, my_app->texture, NULL, NULL);
@@ -252,7 +261,7 @@ To center the point right under the mouse pointer press C.
 
 ** Main logic
  #+BEGIN_SRC c
-   int draw(){
+   int draw(App* my_app){
       for (int x = 0; x < WIDTH; x++) {
 	 for (int y =0;  y < HEIGHT; y++) {
 	 // Mmy_apping the screen with the limits.
@@ -274,17 +283,10 @@ To center the point right under the mouse pointer press C.
 	   }
 
 	   //If any number exits before reaching MAX_ITER then, it is not in the set. So colour it with different shade.
-	   if (iter_count == MAX_ITER) {
-	     //printf("SELECT %.2f %.2f %d %d\n",c_real,c_img,x,y);
-	     //Draw with black
-	     //SDL_SetRenderDrawColor(*renderer, 0,0, 0, SDL_ALPHA_OPAQUE);
-	     //SDL_RenderDrawPoint(*renderer,x,y);
-	     pixels[WIDTH*y+x] = 0xFF0000;
+	   if (iter_count == MAX_ITER) {	    
+	     my_app->pixels[WIDTH*y+x] = 0xFF0000;
 	   }else{
-	      //Draw with custom shade	     
-	     //SDL_SetRenderDrawColor(*renderer, iter_count*factor*3,iter_count*(factor/5), iter_count, SDL_ALPHA_OPAQUE);
-	     //SDL_RenderDrawPoint(*renderer,x,y);
-	     pixels[WIDTH*y+x] =  0xFFFFFF/MAX_ITER * iter_count;
+	     my_app->pixels[WIDTH*y+x] =  0xFFFFFF/MAX_ITER * iter_count;
 	   }
 	 }
       }
@@ -366,9 +368,9 @@ void change_viewport_wrt_mouse(int mouse_x,int mouse_y,long double offset_x, lon
 
 ** Paint white and allow drawing
 #+BEGIN_SRC c
-  void white_paint_and_draw(SDL_Texture **texture, int *to_draw){
-    memset(pixels, 0xFFFFFF, WIDTH * HEIGHT * sizeof(Uint32));
-    SDL_UpdateTexture(*texture, NULL, pixels, WIDTH * sizeof(Uint32));
+  void white_paint_and_draw(App* my_app, int *to_draw){
+    memset(my_app->pixels, 0xFFFFFF, WIDTH * HEIGHT * sizeof(Uint32));
+    SDL_UpdateTexture(my_app->texture, NULL,my_app->pixels, WIDTH * sizeof(Uint32));
     *to_draw = 1;
   }
 #+END_SRC
@@ -376,6 +378,7 @@ void change_viewport_wrt_mouse(int mouse_x,int mouse_y,long double offset_x, lon
 ** Destroy App
 #+BEGIN_SRC c
   void destroy_app(App *my_app){
+    free(my_app->pixels);
     SDL_DestroyTexture(my_app->texture);
     SDL_DestroyRenderer(my_app->renderer);
     SDL_DestroyWindow(my_app->window);      
