@@ -99,7 +99,6 @@ To center the point right under the mouse pointer press C.
   int draw(App*);
   void change_viewport_wrt_mouse(int,int,long double,long double);
   int handle_key_presses(int,long double,long double,int,int);
-  void white_paint_and_draw(App*, int*);
   int initialize_everything(App*);
   void destroy_app(App*);
   void main_loop(App*);
@@ -170,11 +169,8 @@ To center the point right under the mouse pointer press C.
       SDL_Event event;
 	int quit = 0;
 	//Default value of to_render is true and is set true again when the user does some action scrolls in or moves the frame
-	int to_draw;
-
-	//Clear using white color before going inside the loop and set to_draw to 1
-	white_paint_and_draw(my_app,&to_draw);
-
+	int to_draw = 1;
+	//No need to white paint because entire pixel map is upgraded each time.
 	//Relative position of mouse_x and mouse_y
 	int mouse_x, mouse_y;
 	//Offsets
@@ -212,12 +208,12 @@ To center the point right under the mouse pointer press C.
 
 		   }
 		   change_viewport_wrt_mouse(mouse_x,mouse_y,offset_x,offset_y);
-		   white_paint_and_draw(my_app,&to_draw);
+		   to_draw = 1;
 		   break;
 	       case SDL_KEYDOWN:
 		 //if only designated keys are pressed than draw
 		   if (handle_key_presses(event.key.keysym.sym,offset_x,offset_y,mouse_x,mouse_y)) {		 
-		     white_paint_and_draw(my_app,&to_draw);
+		     to_draw = 1;
 		   }
 		   break;
 	       }
@@ -232,7 +228,7 @@ To center the point right under the mouse pointer press C.
 	    out_min_x += offset_x*0.20;
 	    out_max_x -= offset_x*0.20;
 	    MAX_ITER += 20;	  
-	    white_paint_and_draw(my_app,&to_draw);
+	    to_draw = 1;
 	  }
 	  //Draw pixels on the renderer
 	  if (to_draw) {
@@ -283,9 +279,11 @@ To center the point right under the mouse pointer press C.
 	   }
 
 	   //If any number exits before reaching MAX_ITER then, it is not in the set. So colour it with different shade.
-	   if (iter_count == MAX_ITER) {	    
+	   if (iter_count == MAX_ITER) {
+	   //I like red.
 	     my_app->pixels[WIDTH*y+x] = 0xFF0000;
 	   }else{
+	   //Proportional colouring
 	     my_app->pixels[WIDTH*y+x] =  0xFFFFFF/MAX_ITER * iter_count;
 	   }
 	 }
@@ -364,15 +362,6 @@ void change_viewport_wrt_mouse(int mouse_x,int mouse_y,long double offset_x, lon
 	}
       return 1;
    }
-#+END_SRC
-
-** Paint white and allow drawing
-#+BEGIN_SRC c
-  void white_paint_and_draw(App* my_app, int *to_draw){
-    memset(my_app->pixels, 0xFFFFFF, WIDTH * HEIGHT * sizeof(Uint32));
-    SDL_UpdateTexture(my_app->texture, NULL,my_app->pixels, WIDTH * sizeof(Uint32));
-    *to_draw = 1;
-  }
 #+END_SRC
 
 ** Destroy App
